@@ -8,13 +8,27 @@ from sklearn.preprocessing import LabelEncoder
 def parse_label_from_filename(filename: str) -> str:
     """
     Parsira labelu iz imena fajla.
-    Primjer: Z_fault_5_line_69_50%.txt -> 'line_69_50%'
+    Primjer: Z_fault_5_line_69_50%.txt -> 'line_69_sec2'
+    Sada koristimo 3 sekcije.
     """
     base = os.path.basename(filename)
     parts = base.replace(".txt", "").split("_")
-    line = parts[3]   # "69"
-    loc = parts[4]    # "50%"
-    return f"line_{line}_{loc}"
+    line = parts[4]   # "69"
+    loc = parts[5]    # "50%"
+
+    # pretvori postotak u float 0-1
+    pct = float(loc.replace("%", "")) / 100.0
+
+    # definiraj 3 sekcije
+    sections = 3
+    for i in range(sections):
+        if pct <= (i + 1) / sections:
+            sec = i + 1
+            break
+    else:
+        sec = sections
+
+    return f"line_{line}_sec{sec}"
 
 
 def clean_file_content(filepath: str) -> str:
@@ -47,7 +61,7 @@ def load_data(folder="simulation_results"):
 
         # očisti fajl i učitaj
         raw_txt = clean_file_content(fpath)
-        df = pd.read_csv(io.StringIO(raw_txt), sep=r"\s+")
+        df = pd.read_csv(io.StringIO(raw_txt), sep=r"\s+", engine="python")
 
         # rezanje vremena (samo 35s do kraja)
         if "t[s]" in df.columns:
