@@ -26,7 +26,6 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, device, e
         checkpoint = torch.load(best_ckpt, map_location=device)
         model.load_state_dict(checkpoint["model_state"])
         optimizer.load_state_dict(checkpoint["optimizer_state"])
-        start_epoch = checkpoint["epoch"] + 1
         best_val_acc = checkpoint.get("best_val_acc", 0.0)
         print(f"✅ Loaded best model (epoch {checkpoint['epoch']+1}, val_acc={best_val_acc:.4f})")
 
@@ -148,7 +147,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Train
-    model = train_model(model, train_loader, val_loader, criterion, optimizer, device, epochs=30)
+    model = train_model(model, train_loader, val_loader, criterion, optimizer, device, epochs=2000)
 
     # Test -> koristi najbolji model ako postoji
     best_ckpt = os.path.join("checkpoints", "best_model.pth")
