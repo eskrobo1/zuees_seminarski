@@ -1,17 +1,36 @@
 import torch
 import torch.nn as nn
 
-class FaultClassifier(nn.Module):
-    def __init__(self, input_dim, num_classes):
-        super(FaultClassifier, self).__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 256),
+class CNN_RNN_Classifier(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_classes):
+        super(CNN_RNN_Classifier, self).__init__()
+
+        # CNN dio
+        self.cnn = nn.Sequential(
+            nn.Conv1d(in_channels=input_dim, out_channels=32, kernel_size=5, stride=1, padding=2),
             nn.ReLU(),
-            nn.Linear(256, 128),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2),
             nn.ReLU(),
-            nn.Linear(128, num_classes),
-            nn.Softmax(dim=1)
+            nn.MaxPool1d(kernel_size=2)
         )
-    
-    def forward(self, x):
-        return self.net(x)
+
+        # RNN dio
+        self.lstm = nn.LSTM(input_size=64, hidden_size=hidden_dim, batch_first=True)
+
+        # Klasifikator (hidden_dim + 1 jer dodajemo Z_fault)
+        self.fc = nn.Linear(hidden_dim + 1, num_classes)
+
+    def forward(self, x, zfault):
+        # x shape: (batch, timesteps, features)
+        x = x.permute(0, 2, 1)       # (batch, features, timesteps)
+        x = self.cnn(x)              # (batch, 64, T')
+        x = x.permute(0, 2, 1)       # (batch, T', 64)
+        out, (h, c) = self.lstm(x)
+        h = h[-1]                    # zadnji hidden state
+
+        # dodaj Z_fault
+        zfault = zfault.unsqueeze(1)  # (batch,1)
+        h = torch.cat([h, zfault], dim=1)
+
+        return self.fc(h)
