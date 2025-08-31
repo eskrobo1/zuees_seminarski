@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import train_test_split
+from torch.utils.data import Subset
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -121,13 +123,26 @@ def main():
     dataset = FaultDataset("simulation_results", timesteps=651)
     encoder = dataset.encoder
 
-    # Train/Val/Test split
-    total_len = len(dataset)
-    train_len = int(0.7 * total_len)
-    val_len = int(0.15 * total_len)
-    test_len = total_len - train_len - val_len
-    train_set, val_set, test_set = random_split(dataset, [train_len, val_len, test_len])
+    # Stratifikacija
+    labels = dataset.y.numpy()
+    indices = list(range(len(dataset)))
 
+    # prvo Train vs Temp (Val+Test)
+    train_idx, temp_idx, _, temp_labels = train_test_split(
+        indices, labels, test_size=0.3, random_state=42, stratify=labels
+    )
+
+    # onda Val vs Test
+    val_idx, test_idx = train_test_split(
+        temp_idx, test_size=0.5, random_state=42, stratify=temp_labels
+    )
+
+    # kreiraj podskupove
+    train_set = Subset(dataset, train_idx)
+    val_set   = Subset(dataset, val_idx)
+    test_set  = Subset(dataset, test_idx)
+
+    # DataLoaderi
     train_loader = DataLoader(train_set, batch_size=16, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=16)
     test_loader = DataLoader(test_set, batch_size=16)
@@ -147,7 +162,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Train
-    model = train_model(model, train_loader, val_loader, criterion, optimizer, device, epochs=1000)
+    model = train_model(model, train_loader, val_loader, criterion, optimizer, device, epochs=100)
 
     # Test -> koristi najbolji model ako postoji
     best_ckpt = os.path.join("checkpoints", "best_model.pth")
